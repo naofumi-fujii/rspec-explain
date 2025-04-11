@@ -16,9 +16,7 @@ RSpec.configure do |config|
   end
   
   config.before(:suite) do
-    # Use ENV var to check if we should connect to the real database
-    if ENV["USE_REAL_DB"] == "true"
-      DatabaseHelper.setup_database
-    end
+    # Always use the real database
+    DatabaseHelper.setup_database
   end
 end

@@ -56,23 +56,24 @@ If a full table scan is detected, the matcher raises `RspecExplain::FullScanErro
 
 ## Testing with Docker MySQL
 
-This gem includes a Docker setup for testing with a real MySQL database:
+This gem uses real MySQL for testing through Docker:
 
-1. Start the MySQL container:
+1. Start the MySQL container and run tests:
 
 ```bash
+./bin/test-mysql
+```
+
+Or manually:
+
+```bash
+# Start the container
 docker-compose up -d
-```
 
-2. Run the tests with the real database:
+# Run the tests
+bundle exec rspec
 
-```bash
-USE_REAL_DB=true bundle exec rspec
-```
-
-3. Stop the container when you're done:
-
-```bash
+# Stop the container when done
 docker-compose down
 ```
 

@@ -18,8 +18,8 @@ if ! docker ps | grep -q rspec_explain_mysql; then
 fi
 
 # Run the tests with the real database
-echo "Running tests with real MySQL database..."
-USE_REAL_DB=true bundle exec rspec $@
+echo "Running tests with MySQL database..."
+bundle exec rspec $@
 
 # Offer to stop the container
 read -p "Do you want to stop the MySQL container? (y/n) " -n 1 -r
