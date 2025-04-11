@@ -1,0 +1,4 @@
+- rubyのgemとしてrspecのカスタムマッチャをつくりたいです
+- 以下のような使い方を想定しています
+  - `User.where(name: 'naofumi-fujii', age: 37, hobby: 'テニス')のUserテーブルにはname,age,hobbyのカラムがあるが、それぞれindexが貼られていない状態`
+  - `expect(User.where(name: 'naofumi-fujii', age: 37, hobby: 'テニス')).to raise_error RspecExplain::FullScanError`のように書くとテストが成功する
