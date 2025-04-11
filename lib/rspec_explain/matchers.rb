@@ -51,6 +51,20 @@ module RspecExplain
         # MySQL: Look for 'ALL' vs 'ref', 'range', etc.
         # SQLite: Look for 'SCAN TABLE' vs 'SEARCH TABLE'
         
+        # For ActiveRecord >= 6.0, use format: :hash for MySQL to get structured EXPLAIN
+        if defined?(ActiveRecord) && 
+           ActiveRecord::VERSION::MAJOR >= 6 && 
+           ActiveRecord::Base.connection.adapter_name.downcase == 'mysql2'
+          begin
+            # Try with format: :hash first which returns a structured hash
+            explain_hash = ActiveRecord::Base.connection.explain(explain_result, analyze: true)
+            # Convert hash to string for easier pattern matching
+            return explain_hash.to_s.downcase
+          rescue
+            # Fall back to default behavior if explain with hash format fails
+          end
+        end
+        
         explain_result.to_s.downcase
       end
       
@@ -58,8 +72,10 @@ module RspecExplain
         # PostgreSQL
         return true if scan_type.include?('seq scan') && !scan_type.include?('index scan')
         
-        # MySQL
-        return true if scan_type.include?('type: all')
+        # MySQL - Better MySQL detection with more specific patterns
+        return true if scan_type.include?('type: all') || 
+                       scan_type.include?('select type: simple') && scan_type.include?('type: all') ||
+                       scan_type.include?('using where; full table scan')
         
         # SQLite
         return true if scan_type.include?('scan table') && !scan_type.include?('search table')

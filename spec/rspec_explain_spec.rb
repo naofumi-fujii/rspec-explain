@@ -7,10 +7,7 @@ RSpec.describe RspecExplain do
     expect(RspecExplain::VERSION).not_to be nil
   end
 
-  describe "custom matcher" do
-    # This example uses a fake ActiveRecord model structure for testing
-    # In a real app, you would use your actual models
-    
+  describe "with mock models" do
     let(:model_class) do
       # Mock an ActiveRecord class that would return explain output indicating a full table scan
       Class.new do
@@ -39,6 +36,20 @@ RSpec.describe RspecExplain do
     
     it "doesn't raise FullScanError for queries that use indexes" do
       expect(model_class.use_index).not_to raise_full_scan_error
+    end
+  end
+  
+  describe "with real database", if: ENV["USE_REAL_DB"] == "true" do
+    it "raises FullScanError for queries that would perform full table scans" do
+      # A query that will cause a full table scan
+      query = User.where("name = 'User One'")
+      expect(query).to raise_full_scan_error
+    end
+    
+    it "doesn't raise FullScanError for queries that use indexes" do
+      # A query that will use the index we created
+      query = User.where(email: 'user1@example.com')
+      expect(query).not_to raise_full_scan_error
     end
   end
 end

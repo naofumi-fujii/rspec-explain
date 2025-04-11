@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require "rspec_explain"
+require "active_record"
+require_relative "support/database_helper"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
@@ -11,5 +13,12 @@ RSpec.configure do |config|
 
   config.expect_with :rspec do |c|
     c.syntax = :expect
+  end
+  
+  config.before(:suite) do
+    # Use ENV var to check if we should connect to the real database
+    if ENV["USE_REAL_DB"] == "true"
+      DatabaseHelper.setup_database
+    end
   end
 end

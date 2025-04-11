@@ -54,6 +54,32 @@ The gem uses ActiveRecord's `explain` method to analyze the query execution plan
 
 If a full table scan is detected, the matcher raises `RspecExplain::FullScanError`.
 
+## Testing with Docker MySQL
+
+This gem includes a Docker setup for testing with a real MySQL database:
+
+1. Start the MySQL container:
+
+```bash
+docker-compose up -d
+```
+
+2. Run the tests with the real database:
+
+```bash
+USE_REAL_DB=true bundle exec rspec
+```
+
+3. Stop the container when you're done:
+
+```bash
+docker-compose down
+```
+
+## Development
+
+The project includes a Docker setup that makes it easy to develop and test the gem with a real MySQL database. The docker-compose.yml file defines a MySQL 8.0 service that will be initialized with a sample schema and data for testing.
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/naofumi-fujii/rspec-explain.

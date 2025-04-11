@@ -1,0 +1,30 @@
+#!/bin/bash
+set -e
+
+# Start MySQL container if it's not running
+if ! docker ps | grep -q rspec_explain_mysql; then
+  echo "Starting MySQL container..."
+  docker-compose up -d
+  
+  # Wait for MySQL to be ready
+  echo "Waiting for MySQL to be ready..."
+  for i in {1..30}; do
+    if docker exec rspec_explain_mysql mysqladmin ping -h 127.0.0.1 -u root -ppassword --silent; then
+      break
+    fi
+    echo "Waiting for MySQL to be ready... ($i/30)"
+    sleep 1
+  done
+fi
+
+# Run the tests with the real database
+echo "Running tests with real MySQL database..."
+USE_REAL_DB=true bundle exec rspec $@
+
+# Offer to stop the container
+read -p "Do you want to stop the MySQL container? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo "Stopping MySQL container..."
+  docker-compose down
+fi
