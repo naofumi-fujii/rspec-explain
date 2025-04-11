@@ -1,6 +1,18 @@
 #!/bin/bash
 set -e
 
+echo "====== RSpec Explain Testing with MySQL ======"
+
+# Make sure dependencies are installed
+echo "Checking bundle dependencies..."
+bundle check || bundle install
+
+# Check if Docker is running
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: Docker is not available. Please install Docker first."
+  exit 1
+fi
+
 # Start MySQL container if it's not running
 if ! docker ps | grep -q rspec_explain_mysql; then
   echo "Starting MySQL container..."
@@ -8,18 +20,34 @@ if ! docker ps | grep -q rspec_explain_mysql; then
   
   # Wait for MySQL to be ready
   echo "Waiting for MySQL to be ready..."
+  mysql_ready=false
   for i in {1..30}; do
-    if docker exec rspec_explain_mysql mysqladmin ping -h 127.0.0.1 -u root -ppassword --silent; then
+    if docker exec rspec_explain_mysql mysqladmin ping -h 127.0.0.1 -u root -ppassword --silent 2>/dev/null; then
+      mysql_ready=true
       break
     fi
     echo "Waiting for MySQL to be ready... ($i/30)"
     sleep 1
   done
+  
+  if [ "$mysql_ready" = false ]; then
+    echo "ERROR: MySQL did not become ready in time. Check the Docker logs:"
+    docker logs rspec_explain_mysql
+    exit 1
+  fi
+  
+  echo "MySQL is ready!"
 fi
 
 # Run the tests with the real database
 echo "Running tests with MySQL database..."
 bundle exec rspec $@
+test_result=$?
+
+# Check if tests succeeded
+if [ $test_result -ne 0 ]; then
+  echo "Tests failed with exit code $test_result"
+fi
 
 # Offer to stop the container
 read -p "Do you want to stop the MySQL container? (y/n) " -n 1 -r
@@ -28,3 +56,5 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "Stopping MySQL container..."
   docker-compose down
 fi
+
+exit $test_result

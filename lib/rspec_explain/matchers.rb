@@ -12,11 +12,15 @@ module RspecExplain
     class FullScanMatcher
       def matches?(query)
         begin
-          explain_result = query.explain
-          scan_type = extract_scan_type(explain_result)
+          # Save the query for debugging
+          @query = query
           
-          # If the query isn't using indexes, it's a full scan
-          full_scan = full_scan?(scan_type)
+          # Get the EXPLAIN output
+          explain_result = query.explain
+          @explain_result = explain_result
+          
+          # Determine if it's a full scan
+          full_scan = full_scan?(explain_result)
           
           if full_scan
             raise RspecExplain::FullScanError
@@ -35,51 +39,79 @@ module RspecExplain
         if @error
           "expected the query to raise RspecExplain::FullScanError but got: #{@error.message}"
         else
-          "expected the query to raise RspecExplain::FullScanError but it used indexes"
+          "expected the query to raise RspecExplain::FullScanError but it used indexes\n" +
+          "Query: #{@query.to_sql}\n" +
+          "EXPLAIN output: #{@explain_result}"
         end
       end
       
       def failure_message_when_negated
-        "expected the query not to raise RspecExplain::FullScanError, but it did"
+        "expected the query not to raise RspecExplain::FullScanError, but it did\n" +
+        "Query: #{@query.to_sql}\n" +
+        "EXPLAIN output: #{@explain_result}"
       end
       
       private
       
-      def extract_scan_type(explain_result)
-        # This is database-specific and would need to be adapted based on the database
-        # PostgreSQL: Look for 'Seq Scan' vs 'Index Scan'
-        # MySQL: Look for 'ALL' vs 'ref', 'range', etc.
-        # SQLite: Look for 'SCAN TABLE' vs 'SEARCH TABLE'
+      def full_scan?(explain_result)
+        # First, normalize and identify the database type
+        connection = ActiveRecord::Base.connection
+        adapter_type = connection.adapter_name.downcase
         
-        # For ActiveRecord >= 6.0, use format: :hash for MySQL to get structured EXPLAIN
-        if defined?(ActiveRecord) && 
-           ActiveRecord::VERSION::MAJOR >= 6 && 
-           ActiveRecord::Base.connection.adapter_name.downcase == 'mysql2'
+        # MySQL-specific detection logic
+        if adapter_type == 'mysql2'
+          # Try to parse the EXPLAIN output directly
+          explain_text = explain_result.to_s.downcase
+          
+          if explain_text.include?("type=all") || explain_text.include?("type: all")
+            return true
+          end
+          
+          # For more complex cases, try to get the raw EXPLAIN data
           begin
-            # Try with format: :hash first which returns a structured hash
-            explain_hash = ActiveRecord::Base.connection.explain(explain_result, analyze: true)
-            # Convert hash to string for easier pattern matching
-            return explain_hash.to_s.downcase
-          rescue
-            # Fall back to default behavior if explain with hash format fails
+            sql = @query.to_sql
+            explain_rows = connection.exec_query("EXPLAIN #{sql}").to_a
+            
+            # Check for ALL type which indicates full table scan
+            explain_rows.each do |row|
+              if row["type"] == "ALL"
+                return true
+              end
+            end
+          rescue => e
+            # If we can't get the raw explain data, fall back to string parsing
+            if explain_text.include?("full table scan") || 
+               explain_text.include?("filesort") ||
+               explain_text.include?("temporary table")
+              return true
+            end
+          end
+        
+        # PostgreSQL-specific detection logic 
+        elsif adapter_type == 'postgresql'
+          explain_text = explain_result.to_s.downcase
+          if explain_text.include?('seq scan') && !explain_text.include?('index scan')
+            return true
+          end
+        
+        # SQLite-specific detection logic
+        elsif adapter_type == 'sqlite'
+          explain_text = explain_result.to_s.downcase
+          if explain_text.include?('scan table') && !explain_text.include?('search table')
+            return true
+          end
+        
+        # Generic fallback logic
+        else
+          explain_text = explain_result.to_s.downcase
+          if explain_text.include?('full scan') || 
+             explain_text.include?('table scan') ||
+             explain_text.include?('seq scan')
+            return true
           end
         end
         
-        explain_result.to_s.downcase
-      end
-      
-      def full_scan?(scan_type)
-        # PostgreSQL
-        return true if scan_type.include?('seq scan') && !scan_type.include?('index scan')
-        
-        # MySQL - Better MySQL detection with more specific patterns
-        return true if scan_type.include?('type: all') || 
-                       scan_type.include?('select type: simple') && scan_type.include?('type: all') ||
-                       scan_type.include?('using where; full table scan')
-        
-        # SQLite
-        return true if scan_type.include?('scan table') && !scan_type.include?('search table')
-        
+        # If we got here, it's not a full table scan
         false
       end
     end
