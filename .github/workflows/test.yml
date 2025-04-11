@@ -20,5 +20,32 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true # runs 'bundle install' and caches installed gems automatically
-    - name: Run tests
+    - name: Run standard tests
       run: bundle exec rake spec
+      
+  mysql-test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: rspec_explain_test
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+        
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+    - name: Setup database
+      run: |
+        cat docker/mysql/initdb.d/01_schema.sql | mysql -h 127.0.0.1 -u root -ppassword rspec_explain_test
+    - name: Run MySQL tests
+      run: |
+        chmod +x bin/test-mysql
+        SKIP_DOCKER=true bin/test-mysql
