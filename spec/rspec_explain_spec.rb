@@ -7,7 +7,7 @@ RSpec.describe RspecExplain do
     expect(RspecExplain::VERSION).not_to be nil
   end
 
-  describe "with real ActiveRecord" do
+  describe "original full scan matcher" do
     it "raises FullScanError for queries that would perform full table scans" do
       # A query that will cause a full table scan (no index on 'name')
       query = User.where("name = 'User One'")
@@ -37,6 +37,107 @@ RSpec.describe RspecExplain do
       # A query with a LIKE that doesn't start with wildcard, can use index
       query = User.where("email LIKE 'user1%'")
       expect(query).not_to raise_full_scan_error
+    end
+  end
+  
+  describe "access type matcher" do
+    it "detects problematic access types" do
+      # A query that will use ALL access type (full table scan)
+      query = User.where("name = 'User One'")
+      expect(query).not_to have_good_access_type
+      
+      # A query that will use a better access type (ref)
+      query = User.where(email: 'user1@example.com')
+      expect(query).to have_good_access_type
+    end
+  end
+  
+  describe "row count matcher" do
+    it "checks if query scans too many rows" do
+      # Our test database has only a few rows, so all queries should pass
+      query = User.where("name = 'User One'")
+      expect(query).to scan_fewer_than(10)
+      
+      # But we can test the failure case with a very low threshold
+      expect(query).not_to scan_fewer_than(1)
+    end
+  end
+  
+  describe "expensive operation matcher" do
+    it "detects expensive operations" do
+      # A simple query without filesort or temporary tables
+      query = User.where(email: 'user1@example.com')
+      expect(query).to avoid_expensive_operations
+      
+      # A query with ORDER BY on a non-indexed column should use filesort
+      query = User.all.order('name ASC')
+      expect(query).not_to avoid_expensive_operations
+    end
+  end
+  
+  describe "index usage matcher" do
+    it "checks if query uses an index" do
+      # A query that uses the index on email
+      query = User.where(email: 'user1@example.com')
+      expect(query).to use_index
+      
+      # A query that doesn't use any index
+      query = User.where("name = 'User One'")
+      expect(query).not_to use_index
+    end
+  end
+  
+  describe "available index matcher" do
+    it "checks if query uses available index candidates" do
+      # A query that uses an index properly
+      query = User.where(email: 'user1@example.com')
+      expect(query).to use_available_indexes
+      
+      # A query with a potential index, but force not to use it
+      # This is a bit artificial but works for testing
+      query = User.where("email = 'user1@example.com' OR name = 'User One'")
+      expect(query).not_to use_available_indexes
+    end
+  end
+  
+  describe "combined usage example" do
+    context "with a poorly optimized query" do
+      let(:query) { User.where("name = 'User One'") }
+      
+      it "fails multiple optimizations checks" do
+        # Check if it uses a full table scan
+        expect(query).to raise_full_scan_error
+        
+        # Check if it uses a bad access type
+        expect(query).not_to have_good_access_type
+        
+        # Check if it uses an index
+        expect(query).not_to use_index
+      end
+    end
+    
+    context "with an optimized query" do
+      let(:query) { User.where(email: 'user1@example.com') }
+      
+      it "passes optimization checks" do
+        # Check if query doesn't trigger a full table scan
+        expect(query).not_to raise_full_scan_error
+        
+        # Check if it uses a good access type
+        expect(query).to have_good_access_type
+        
+        # Check if it scans few enough rows
+        expect(query).to scan_fewer_than(10)
+        
+        # Check if it avoids expensive operations
+        expect(query).to avoid_expensive_operations
+        
+        # Check if it uses an index
+        expect(query).to use_index
+        
+        # Check if it uses available index candidates
+        expect(query).to use_available_indexes
+      end
     end
   end
 end
