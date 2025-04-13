@@ -26,9 +26,11 @@ $ gem install rspec-explain
 
 ## Usage
 
-### Original Full Scan Matcher
+### Full Table Scan Matchers
 
-The original matcher checks if a query performs a full table scan:
+The library provides two equivalent matchers to check if a query performs a full table scan:
+
+#### 1. Original Matcher
 
 ```ruby
 require 'rspec_explain'
@@ -45,6 +47,24 @@ RSpec.describe User, type: :model do
   end
 end
 ```
+
+#### 2. Alternative Matcher (Same Functionality)
+
+```ruby
+RSpec.describe User, type: :model do
+  it 'detects when the query would perform a full table scan' do
+    # Assuming the User table has name column without an index
+    expect(User.where(name: 'naofumi-fujii')).to detect_full_table_scan
+  end
+  
+  it 'does not detect full table scan when the query uses indexes' do
+    # Assuming the User table has an index on the email column
+    expect(User.where(email: 'example@example.com')).not_to detect_full_table_scan
+  end
+end
+```
+
+Both matchers have identical functionality - choose the one that reads better in your tests.
 
 ### New Matchers
 

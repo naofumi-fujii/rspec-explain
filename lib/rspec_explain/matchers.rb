@@ -9,6 +9,11 @@ module RspecExplain
       FullScanMatcher.new
     end
     
+    # Alternative name for raise_full_scan_error that follows naming conventions 
+    def detect_full_table_scan
+      FullScanMatcher.new
+    end
+    
     # Checks if query has problematic access type (ALL or index)
     def have_good_access_type
       AccessTypeMatcher.new
