@@ -19,6 +19,9 @@ bundle exec rspec spec/rspec_explain_spec.rb:LINE_NUMBER
 
 # Lint check using standard Ruby style
 bundle exec rubocop
+
+# Run Sorbet type checks
+bundle exec rake typecheck
 ```
 
 ## Code Style Guidelines
@@ -29,14 +32,18 @@ bundle exec rubocop
 
 3. **Error handling**: Define custom errors in `lib/rspec_explain/errors.rb` and use proper error classes.
 
-4. **Testing**: Write tests for all new functionality. Ensure database tests use the Docker MySQL setup.
+4. **Type checking**: Files are type-checked with Sorbet. Include `# typed: strict` at the top of each file and use appropriate type signatures with `sig` blocks.
 
-5. **Documentation**: Add Yard-style comments to public APIs and update README for significant changes.
+5. **Testing**: Write tests for all new functionality. Ensure database tests use the Docker MySQL setup.
 
-6. **Dependencies**: Requires Ruby >= 2.6.0. Primary dependencies are RSpec and ActiveRecord.
+6. **Documentation**: Add Yard-style comments to public APIs and update README for significant changes.
+
+7. **Dependencies**: Requires Ruby >= 2.6.0. Primary dependencies are RSpec, ActiveRecord, and Sorbet.
 
 ## Project Structure
 - `lib/rspec_explain/matchers.rb`: Core functionality with the RSpec matcher
+- `lib/rspec_explain/errors.rb`: Custom error classes
+- `sorbet/`: Sorbet type definition files
 - `spec/`: Test suite
 - `docker/`: MySQL Docker setup for database tests
 
