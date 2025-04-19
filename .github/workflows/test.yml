@@ -47,6 +47,9 @@ jobs:
       with:
         ruby-version: ${{ matrix.ruby-version }}
         bundler-cache: true
+    - name: typecheck
+      run: |
+        bundle exec rake typecheck
     - name: Setup database
       run: |
         cat docker/mysql/initdb.d/01_schema.sql | mysql -h 127.0.0.1 -u root -ppassword rspec_explain_test
