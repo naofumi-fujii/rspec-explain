@@ -1,54 +1,69 @@
 # frozen_string_literal: true
+# typed: strict
 
 require "rspec/expectations"
+require 'sorbet-runtime'
 
 module RspecExplain
   module Matchers
+    extend T::Sig
+    
     # Checks if an ActiveRecord query would use an index or perform a full table scan
+    sig { returns(FullScanMatcher) }
     def raise_full_scan_error
       FullScanMatcher.new
     end
     
     # Alternative name for raise_full_scan_error that follows naming conventions 
+    sig { returns(FullScanMatcher) }
     def detect_full_table_scan
       FullScanMatcher.new
     end
     
     # Checks if query has problematic access type (ALL or index)
+    sig { returns(AccessTypeMatcher) }
     def have_good_access_type
       AccessTypeMatcher.new
     end
     
     # Checks if query scans too many rows
+    sig { params(threshold: Integer).returns(RowCountMatcher) }
     def scan_fewer_than(threshold)
       RowCountMatcher.new(threshold)
     end
     
     # Checks if query uses expensive operations like filesort or temporary tables
+    sig { returns(ExpensiveOperationMatcher) }
     def avoid_expensive_operations
       ExpensiveOperationMatcher.new
     end
     
     # Checks if query uses an index
+    sig { returns(IndexUsageMatcher) }
     def use_index
       IndexUsageMatcher.new
     end
     
     # Checks if query uses available index candidates
+    sig { returns(AvailableIndexMatcher) }
     def use_available_indexes
       AvailableIndexMatcher.new
     end
     
     # Common base class for all explain matchers
     class BaseMatcher
+      extend T::Sig
+      
+      sig { void }
       def initialize
-        @query = nil
-        @explain_result = nil
-        @explain_rows = nil
-        @error = nil
-        @specific_error = nil
+        @query = T.let(nil, T.nilable(ActiveRecord::Relation))
+        @explain_result = T.let(nil, T.nilable(Object))
+        @explain_rows = T.let(nil, T.nilable(T::Array[T::Hash[String, T.untyped]]))
+        @error = T.let(nil, T.nilable(StandardError))
+        @specific_error = T.let(nil, T.nilable(StandardError))
       end
       
+      sig { params(query: ActiveRecord::Relation).returns(T::Boolean) }
       def matches?(query)
         begin
           # Save the query for debugging
@@ -76,38 +91,42 @@ module RspecExplain
                RspecExplain::UnusedIndexCandidateError => e
           @specific_error = e
           false # Matcher error means test fails
-        rescue => e
+        rescue StandardError => e
           @error = e
           false # Other errors mean the test fails
         end
       end
       
       # Template method to be implemented by subclasses
+      sig { void }
       def check_explain
         raise NotImplementedError, "Subclasses must implement check_explain"
       end
       
+      sig { returns(String) }
       def failure_message
         if @error
           "expected the query to pass but got unexpected error: #{@error.message}"
         elsif @specific_error
           "expected the query to pass but failed: #{@specific_error.message}\n" +
-          "Query: #{@query.to_sql}\n" +
+          "Query: #{T.must(@query).to_sql}\n" +
           "EXPLAIN output: #{@explain_result}"
         else
           "expected the query to pass but it failed\n" +
-          "Query: #{@query.to_sql}\n" +
+          "Query: #{T.must(@query).to_sql}\n" +
           "EXPLAIN output: #{@explain_result}"
         end
       end
       
+      sig { returns(String) }
       def failure_message_when_negated
         "expected the query to fail, but it passed\n" +
-        "Query: #{@query.to_sql}\n" +
+        "Query: #{T.must(@query).to_sql}\n" +
         "EXPLAIN output: #{@explain_result}"
       end
       
       # Helper to get MySQL EXPLAIN rows (falls back to parsing explain_result text)
+      sig { returns(T::Array[T::Hash[String, T.untyped]]) }
       def mysql_explain_rows
         if @explain_rows && !@explain_rows.empty?
           return @explain_rows
@@ -119,12 +138,16 @@ module RspecExplain
     end
     
     class FullScanMatcher
+      extend T::Sig
+      
+      sig { void }
       def initialize
-        @query = nil
-        @explain_result = nil
-        @error = nil
+        @query = T.let(nil, T.nilable(ActiveRecord::Relation))
+        @explain_result = T.let(nil, T.nilable(Object))
+        @error = T.let(nil, T.nilable(StandardError))
       end
       
+      sig { params(query: ActiveRecord::Relation).returns(T::Boolean) }
       def matches?(query)
         begin
           # Save the query for debugging
@@ -144,30 +167,33 @@ module RspecExplain
           false # Match means an error was raised
         rescue RspecExplain::FullScanError
           true # Match successful
-        rescue => e
+        rescue StandardError => e
           @error = e
           false # Other errors mean the match failed
         end
       end
       
+      sig { returns(String) }
       def failure_message
         if @error
           "expected the query to raise RspecExplain::FullScanError but got: #{@error.message}"
         else
           "expected the query to raise RspecExplain::FullScanError but it used indexes\n" +
-          "Query: #{@query.to_sql}\n" +
+          "Query: #{T.must(@query).to_sql}\n" +
           "EXPLAIN output: #{@explain_result}"
         end
       end
       
+      sig { returns(String) }
       def failure_message_when_negated
         "expected the query not to raise RspecExplain::FullScanError, but it did\n" +
-        "Query: #{@query.to_sql}\n" +
+        "Query: #{T.must(@query).to_sql}\n" +
         "EXPLAIN output: #{@explain_result}"
       end
       
       private
       
+      sig { params(explain_result: Object).returns(T::Boolean) }
       def full_scan?(explain_result)
         # First, normalize and identify the database type
         connection = ActiveRecord::Base.connection
@@ -184,7 +210,7 @@ module RspecExplain
           
           # For more complex cases, try to get the raw EXPLAIN data
           begin
-            sql = @query.to_sql
+            sql = T.must(@query).to_sql
             explain_rows = connection.exec_query("EXPLAIN #{sql}").to_a
             
             # Check for ALL type which indicates full table scan
@@ -193,7 +219,7 @@ module RspecExplain
                 return true
               end
             end
-          rescue => e
+          rescue StandardError => e
             # If we can't get the raw explain data, fall back to string parsing
             if explain_text.include?("full table scan") || 
                explain_text.include?("filesort") ||
@@ -232,6 +258,9 @@ module RspecExplain
     end
     
     class AccessTypeMatcher < BaseMatcher
+      extend T::Sig
+      
+      sig { override.void }
       def check_explain
         connection = ActiveRecord::Base.connection
         adapter_type = connection.adapter_name.downcase
@@ -260,11 +289,15 @@ module RspecExplain
     end
     
     class RowCountMatcher < BaseMatcher
+      extend T::Sig
+      
+      sig { params(threshold: Integer).void }
       def initialize(threshold)
         super()
-        @threshold = threshold
+        @threshold = T.let(threshold, Integer)
       end
       
+      sig { override.void }
       def check_explain
         connection = ActiveRecord::Base.connection
         adapter_type = connection.adapter_name.downcase
@@ -284,13 +317,16 @@ module RspecExplain
     end
     
     class ExpensiveOperationMatcher < BaseMatcher
+      extend T::Sig
+      
+      sig { override.void }
       def check_explain
         connection = ActiveRecord::Base.connection
         adapter_type = connection.adapter_name.downcase
         
         if adapter_type == 'mysql2'
           rows = mysql_explain_rows
-          expensive_operations = []
+          expensive_operations = T.let([], T::Array[String])
           
           rows.each do |row|
             if row["Extra"]
@@ -319,6 +355,9 @@ module RspecExplain
     end
     
     class IndexUsageMatcher < BaseMatcher
+      extend T::Sig
+      
+      sig { override.void }
       def check_explain
         connection = ActiveRecord::Base.connection
         adapter_type = connection.adapter_name.downcase
@@ -338,6 +377,7 @@ module RspecExplain
         end
       end
       
+      sig { void }
       def check_explain_like_full_scan
         # First, normalize and identify the database type
         connection = ActiveRecord::Base.connection
@@ -370,6 +410,9 @@ module RspecExplain
     end
     
     class AvailableIndexMatcher < BaseMatcher
+      extend T::Sig
+      
+      sig { override.void }
       def check_explain
         connection = ActiveRecord::Base.connection
         adapter_type = connection.adapter_name.downcase

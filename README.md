@@ -169,6 +169,22 @@ docker-compose down
 
 The project includes a Docker setup that makes it easy to develop and test the gem with a real MySQL database. The docker-compose.yml file defines a MySQL 8.0 service that will be initialized with a sample schema and data for testing.
 
+### Type Checking
+
+This project uses [Sorbet](https://sorbet.org/) for static type checking. All Ruby files include type signatures and are set to `# typed: strict`.
+
+To run the type checker:
+
+```bash
+bundle exec rake typecheck
+```
+
+For development, you can regenerate the RBI files with:
+
+```bash
+bundle exec tapioca dsl
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/naofumi-fujii/rspec-explain.
