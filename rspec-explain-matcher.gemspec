@@ -3,14 +3,14 @@
 require_relative 'lib/rspec_explain/version'
 
 Gem::Specification.new do |spec|
-  spec.name = "rspec-explain"
+  spec.name = "rspec-explain-matcher"
   spec.version = RspecExplain::VERSION
   spec.authors = ["Naofumi Fujii"]
   spec.email = [""]
 
   spec.summary = "RSpec custom matcher for ActiveRecord EXPLAIN"
   spec.description = "Provides a custom matcher to check if ActiveRecord queries are using indexes"
-  spec.homepage = "https://github.com/naofumi-fujii/rspec-explain"
+  spec.homepage = "https://github.com/naofumi-fujii/rspec-explain-matcher"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 2.6.0"
 

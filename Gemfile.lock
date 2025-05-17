@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rspec-explain (0.1.0)
+    rspec-explain-matcher (0.1.0)
       activerecord (>= 5.0)
       rspec (>= 3.0)
 
@@ -108,7 +108,7 @@ DEPENDENCIES
   mysql2 (~> 0.5.5)
   rake (~> 13.0)
   rspec (~> 3.0)
-  rspec-explain!
+  rspec-explain-matcher!
   sorbet
   sorbet-runtime
   tapioca
