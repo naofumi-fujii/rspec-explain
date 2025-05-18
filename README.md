@@ -8,7 +8,7 @@ Add this line to your application's Gemfile:
 
 ```ruby
 group :test do
-  gem 'rspec-explain'
+  gem 'rspec-explain-matcher'
 end
 ```
 
@@ -21,7 +21,7 @@ $ bundle install
 Or install it yourself as:
 
 ```
-$ gem install rspec-explain
+$ gem install rspec-explain-matcher
 ```
 
 ## Usage
@@ -187,7 +187,7 @@ bundle exec tapioca dsl
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/naofumi-fujii/rspec-explain.
+Bug reports and pull requests are welcome on GitHub at https://github.com/naofumi-fujii/rspec-explain-matcher.
 
 ## License
 
